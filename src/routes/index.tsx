@@ -1,4 +1,3 @@
-import { createFileRoute } from '@tanstack/react-router';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { 
@@ -22,10 +21,6 @@ import {
   X
 } from 'lucide-react';
 
-export const Route = createFileRoute('/')({
-  component: Component,
-});
-
 interface Story {
   id: string;
   user_name: string;
@@ -33,7 +28,7 @@ interface Story {
   created_at?: string;
 }
 
-function Component() {
+export default function Component() {
   const [activeTab, setActiveTab] = useState<'feed' | 'wardrobe' | 'ai' | 'profile'>('feed');
   const [showSettings, setShowSettings] = useState(false);
   const [eventCategory, setEventCategory] = useState<string>('party');

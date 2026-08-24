@@ -1,12 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Home, Inbox, Compass, Bot, Heart, MessageCircle, PlusSquare, User, Camera, Sparkles } from 'lucide-react';
+import { supabase } from './supabase';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'inbox' | 'explore' | 'copilot' | 'profile'>('home');
-  const [likes, setLikes] = useState<{ [key: number]: boolean }>({});
-  const [likeCounts, setLikeCounts] = useState<{ [key: number]: number }>({ 1: 124, 2: 89 });
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  
+  const [likes, setLikes] = useState<{ [key: string]: boolean }>({});
+  const [likeCounts, setLikeCounts] = useState<{ [key: string]: number }>({});
 
-  const toggleLike = (id: number) => {
+  // პოსტების წამოღება Supabase ბაზიდან
+  useEffect(() => {
+    async function fetchPostsFromSupabase() {
+      try {
+        const { data, error } = await supabase
+          .from('posts')
+          .select('*, profiles(username, avatar_url)')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('შეცდომა პოსტების წამოღებისას:', error.message);
+        } else if (data && data.length > 0) {
+          setPosts(data);
+          // ლაიქების ქაუნთების ინიციალიზაცია
+          const counts: { [key: string]: number } = {};
+          data.forEach((p: any) => {
+            counts[p.id] = p.score || 100;
+          });
+          setLikeCounts(counts);
+        }
+      } catch (err) {
+        console.error('ბაზასთან კავშირის შეცდომა:', err);
+      } finally {
+        setLoadingPosts(false);
+      }
+    }
+
+    fetchPostsFromSupabase();
+  }, []);
+
+  const toggleLike = (id: string) => {
     const isLiked = likes[id];
     setLikes({ ...likes, [id]: !isLiked });
     setLikeCounts({
@@ -52,39 +86,87 @@ export default function App() {
               ))}
             </div>
 
-            {/* Post 1 */}
-            <div className="border-b border-zinc-800 pb-4 bg-zinc-950/40">
-              <div className="flex items-center justify-between px-4 py-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center font-bold text-sm text-white shadow-lg shadow-purple-900/50">T</div>
-                  <span className="text-sm font-medium text-zinc-200">Trendora Style</span>
-                </div>
-                <span className="text-zinc-500 text-sm">...</span>
-              </div>
-              <div className="w-full h-96 bg-zinc-900 flex flex-col items-center justify-center text-zinc-500 relative">
-                <div className="absolute top-3 right-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs px-2.5 py-1 rounded-full font-medium">
-                  Score: 96 ✨
-                </div>
-                <Camera className="w-12 h-12 mb-2 text-purple-400 opacity-60" />
-                <span className="text-sm">სტილის ფოტო</span>
-              </div>
-              <div className="px-4 py-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex space-x-4">
-                    <Heart 
-                      onClick={() => toggleLike(1)} 
-                      className={`w-6 h-6 cursor-pointer transition ${likes[1] ? 'text-pink-500 fill-pink-500' : 'text-zinc-300 hover:text-pink-400'}`} 
-                    />
-                    <MessageCircle className="w-6 h-6 cursor-pointer text-zinc-300 hover:text-purple-400" />
+            {/* Posts Stream */}
+            {loadingPosts ? (
+              <div className="text-center py-10 text-zinc-500 text-sm">იტვირთება პოსტები...</div>
+            ) : posts.length > 0 ? (
+              posts.map((post) => (
+                <div key={post.id} className="border-b border-zinc-800 pb-4 bg-zinc-950/40">
+                  <div className="flex items-center justify-between px-4 py-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center font-bold text-sm text-white shadow-lg shadow-purple-900/50">
+                        {post.profiles?.username?.[0]?.toUpperCase() || 'T'}
+                      </div>
+                      <span className="text-sm font-medium text-zinc-200">{post.profiles?.username || 'Trendora User'}</span>
+                    </div>
+                    <span className="text-zinc-500 text-sm">...</span>
+                  </div>
+                  <div className="w-full h-96 bg-zinc-900 flex flex-col items-center justify-center text-zinc-500 relative">
+                    {post.image_url ? (
+                      <img src={post.image_url} alt="Post content" className="w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <div className="absolute top-3 right-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs px-2.5 py-1 rounded-full font-medium">
+                          Score: {post.score || 96} ✨
+                        </div>
+                        <Camera className="w-12 h-12 mb-2 text-purple-400 opacity-60" />
+                        <span className="text-sm">სტილის ფოტო</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="px-4 py-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex space-x-4">
+                        <Heart 
+                          onClick={() => toggleLike(post.id)} 
+                          className={`w-6 h-6 cursor-pointer transition ${likes[post.id] ? 'text-pink-500 fill-pink-500' : 'text-zinc-300 hover:text-pink-400'}`} 
+                        />
+                        <MessageCircle className="w-6 h-6 cursor-pointer text-zinc-300 hover:text-purple-400" />
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold text-purple-300">{likeCounts[post.id] || 124} მოწონება</div>
+                    <div className="text-sm text-zinc-300">
+                      <span className="font-semibold mr-2 text-white">{post.profiles?.username || 'Trendora Style'}</span>
+                      {post.caption || 'ახალი სეზონის ტრენდები და საუკეთესო ლუქები თქვენი გარდერობისთვის! ✨'}
+                    </div>
                   </div>
                 </div>
-                <div className="text-sm font-semibold text-purple-300">{likeCounts[1]} მოწონება</div>
-                <div className="text-sm text-zinc-300">
-                  <span className="font-semibold mr-2 text-white">Trendora Style</span>
-                  ახალი სეზონის ტრენდები და საუკეთესო ლუქები თქვენი გარდერობისთვის! ✨
+              ))
+            ) : (
+              /* Fallback Static Post if table is empty */
+              <div className="border-b border-zinc-800 pb-4 bg-zinc-950/40">
+                <div className="flex items-center justify-between px-4 py-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center font-bold text-sm text-white shadow-lg shadow-purple-900/50">T</div>
+                    <span className="text-sm font-medium text-zinc-200">Trendora Style</span>
+                  </div>
+                  <span className="text-zinc-500 text-sm">...</span>
+                </div>
+                <div className="w-full h-96 bg-zinc-900 flex flex-col items-center justify-center text-zinc-500 relative">
+                  <div className="absolute top-3 right-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs px-2.5 py-1 rounded-full font-medium">
+                    Score: 96 ✨
+                  </div>
+                  <Camera className="w-12 h-12 mb-2 text-purple-400 opacity-60" />
+                  <span className="text-sm">სტილის ფოტო (ბაზა ცარიელია)</span>
+                </div>
+                <div className="px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex space-x-4">
+                      <Heart 
+                        onClick={() => toggleLike('fallback')} 
+                        className={`w-6 h-6 cursor-pointer transition ${likes['fallback'] ? 'text-pink-500 fill-pink-500' : 'text-zinc-300 hover:text-pink-400'}`} 
+                      />
+                      <MessageCircle className="w-6 h-6 cursor-pointer text-zinc-300 hover:text-purple-400" />
+                    </div>
+                  </div>
+                  <div className="text-sm font-semibold text-purple-300">{likeCounts['fallback'] || 124} მოწონება</div>
+                  <div className="text-sm text-zinc-300">
+                    <span className="font-semibold mr-2 text-white">Trendora Style</span>
+                    ახალი სეზონის ტრენდები და საუკეთესო ლუქები თქვენი გარდერობისთვის! ✨
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -107,7 +189,7 @@ export default function App() {
             <h2 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-emerald-400 bg-clip-text text-transparent flex items-center gap-2">
               <Bot className="w-5 h-5 text-emerald-400" /> AI სტილისტი
             </h2>
-            <div className="text-sm text-zinc-300 bg-zinc-900/50 p-4 rounded-2xl border border-emerald-500/20">მალე აქ იქნება AI ჩათი...</div>
+            <div className="text-sm text-zinc-300 bg-zinc-900/50 p-4 rounded-2xl border border-emerald-500/20">მალე აქ იქნება AI ჩათი და გარდერობის ასისტენტი...</div>
           </div>
         )}
 
@@ -125,7 +207,7 @@ export default function App() {
               </div>
             </div>
             <div className="text-sm text-zinc-300 bg-zinc-900/50 p-4 rounded-2xl border border-purple-500/20">
-              მალე აქ იქნება პროფილის და სეთინგების მართვა ფერად სტილში...
+              პროფილის და ციფრული გარდერობის მართვა აქტიურია.
             </div>
           </div>
         )}

@@ -1,5 +1,10 @@
-// Temporary dummy export to prevent crashes
 export const supabase = {
-  auth: { getUser: () => Promise.resolve({ data: { user: null } }) },
-  from: () => ({ select: () => Promise.resolve({ data: [], error: null }) })
+  auth: { 
+    getUser: () => Promise.resolve({ data: { user: null } }),
+    signOut: () => Promise.resolve()
+  },
+  from: () => ({ 
+    select: () => Promise.resolve({ data: [], error: null }),
+    insert: () => Promise.resolve({ data: [], error: null })
+  })
 };

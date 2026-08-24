@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import React, { useState } from 'react';
 import { 
   Home, 
   Shirt, 
@@ -25,7 +24,6 @@ interface Story {
   id: string;
   user_name: string;
   image_url: string;
-  created_at?: string;
 }
 
 export default function Component() {
@@ -38,10 +36,12 @@ export default function Component() {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
-  // Supabase Data
-  const [stories, setStories] = useState<Story[]>([]);
+  // Local Stories State (No Supabase crash)
+  const [stories, setStories] = useState<Story[]>([
+    { id: '1', user_name: 'სალომე', image_url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400' },
+    { id: '2', user_name: 'ნიკა', image_url: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=400' }
+  ]);
   const [newStoryUrl, setNewStoryUrl] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
 
   const [reactions, setReactions] = useState({
     veryGood: 142,
@@ -51,46 +51,18 @@ export default function Component() {
   });
   const [userReaction, setUserReaction] = useState<string | null>(null);
 
-  // Fetch Stories from Supabase
-  const fetchStories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('stories')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setStories(data);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    fetchStories();
-  }, []);
-
-  // Add Story to Supabase
-  const handleAddStory = async (e: React.FormEvent) => {
+  const handleAddStory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStoryUrl) return;
 
-    setIsUploading(true);
-    const { error } = await supabase.from('stories').insert([
-      {
-        user_name: 'გიორგი',
-        image_url: newStoryUrl
-      }
-    ]);
+    const newStory: Story = {
+      id: Date.now().toString(),
+      user_name: 'გიორგი',
+      image_url: newStoryUrl
+    };
 
-    setIsUploading(false);
-    if (!error) {
-      setNewStoryUrl('');
-      fetchStories();
-    } else {
-      alert('სთორის დამატება ვერ მოხერხდა: ' + error.message);
-    }
+    setStories([newStory, ...stories]);
+    setNewStoryUrl('');
   };
 
   const handleReaction = (type: keyof typeof reactions) => {
@@ -182,10 +154,9 @@ export default function Component() {
               />
               <button
                 type="submit"
-                disabled={isUploading}
                 className="bg-teal-600 text-white px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-teal-700 transition"
               >
-                {isUploading ? '...' : 'ატვირთვა'}
+                ატვირთვა
               </button>
             </form>
           </div>
@@ -214,10 +185,10 @@ export default function Component() {
               <div className="p-3 bg-slate-50/80 border-b border-slate-100">
                 <p className="text-[11px] font-semibold text-slate-500 mb-2">შეაფასე სტილი:</p>
                 <div className="grid grid-cols-4 gap-1.5 text-center">
-                  <button onClick={() => handleReaction('veryGood')} className={`py-1.5 px-1 rounded-xl text-[10px] font-semibold transition-all ${userReaction === 'veryGood' ? 'bg-pink-500 text-white shadow' : 'bg-white text-slate-700 border border-slate-200'}`}>🔥 ძალ. კარგი ({reactions.veryGood})</button>
+                  <button onClick={() => handleReaction('veryGood')} className={`py-1.5 px-1 rounded-xl text-[10px] font-semibold transition-all ${userReaction === 'veryGood' ? 'bg-pink-500 text-white shadow' : 'bg-white text-slate-700 border border-slate-200'}`}>🔥 კარგი ({reactions.veryGood})</button>
                   <button onClick={() => handleReaction('good')} className={`py-1.5 px-1 rounded-xl text-[10px] font-semibold transition-all ${userReaction === 'good' ? 'bg-amber-500 text-white shadow' : 'bg-white text-slate-700 border border-slate-200'}`}>✨ კარგი ({reactions.good})</button>
                   <button onClick={() => handleReaction('wonderful')} className={`py-1.5 px-1 rounded-xl text-[10px] font-semibold transition-all ${userReaction === 'wonderful' ? 'bg-teal-500 text-white shadow' : 'bg-white text-slate-700 border border-slate-200'}`}>🌸 მშვენიერი ({reactions.wonderful})</button>
-                  <button onClick={() => handleReaction('normal')} className={`py-1.5 px-1 rounded-xl text-[10px] font-semibold transition-all ${userReaction === 'normal' ? 'bg-indigo-600 text-white shadow' : 'bg-white text-slate-700 border border-slate-200'}`}>👍 ნორმალური ({reactions.normal})</button>
+                  <button onClick={() => handleReaction('normal')} className={`py-1.5 px-1 rounded-xl text-[10px] font-semibold transition-all ${userReaction === 'normal' ? 'bg-indigo-600 text-white shadow' : 'bg-white text-slate-700 border border-slate-200'}`}>👍 ნორმ. ({reactions.normal})</button>
                 </div>
               </div>
 

@@ -1,3 +1,4 @@
+import { createFileRoute } from '@tanstack/react-router';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { 
@@ -21,6 +22,10 @@ import {
   X
 } from 'lucide-react';
 
+export const Route = createFileRoute('/')({
+  component: Component,
+});
+
 interface Story {
   id: string;
   user_name: string;
@@ -28,7 +33,7 @@ interface Story {
   created_at?: string;
 }
 
-export default function Component() {
+function Component() {
   const [activeTab, setActiveTab] = useState<'feed' | 'wardrobe' | 'ai' | 'profile'>('feed');
   const [showSettings, setShowSettings] = useState(false);
   const [eventCategory, setEventCategory] = useState<string>('party');
@@ -53,13 +58,17 @@ export default function Component() {
 
   // Fetch Stories from Supabase
   const fetchStories = async () => {
-    const { data, error } = await supabase
-      .from('stories')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('stories')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setStories(data);
+      if (!error && data) {
+        setStories(data);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 

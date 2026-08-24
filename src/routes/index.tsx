@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import ReactDOM from 'react-dom/client';
+import { createFileRoute } from '@tanstack/react-router';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabase';
 import { 
   Home, 
   Shirt, 
@@ -17,15 +18,30 @@ import {
   Bell,
   CheckCircle2,
   ChevronRight,
-  ShoppingBag,
   Camera
 } from 'lucide-react';
+
+export const Route = createFileRoute('/')({
+  component: Component,
+});
+
+interface Story {
+  id: string;
+  user_name: string;
+  image_url: string;
+  created_at: string;
+}
 
 export function Component() {
   const [activeTab, setActiveTab] = useState<'feed' | 'wardrobe' | 'ai' | 'profile'>('feed');
   const [showSettings, setShowSettings] = useState(false);
   const [eventCategory, setEventCategory] = useState<string>('party');
   const [aiRecommendation, setAiRecommendation] = useState<string | null>(null);
+
+  // Supabase Data
+  const [stories, setStories] = useState<Story[]>([]);
+  const [newStoryUrl, setNewStoryUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   const [reactions, setReactions] = useState({
     veryGood: 142,
@@ -34,6 +50,44 @@ export function Component() {
     normal: 19
   });
   const [userReaction, setUserReaction] = useState<string | null>(null);
+
+  // Fetch Stories from Supabase
+  const fetchStories = async () => {
+    const { data, error } = await supabase
+      .from('stories')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setStories(data);
+    }
+  };
+
+  useEffect(() => {
+    fetchStories();
+  }, []);
+
+  // Add Story to Supabase
+  const handleAddStory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStoryUrl) return;
+
+    setIsUploading(true);
+    const { error } = await supabase.from('stories').insert([
+      {
+        user_name: 'გიორგი',
+        image_url: newStoryUrl
+      }
+    ]);
+
+    setIsUploading(false);
+    if (!error) {
+      setNewStoryUrl('');
+      fetchStories();
+    } else {
+      alert('სთორის დამატება ვერ მოხერხდა: ' + error.message);
+    }
+  };
 
   const handleReaction = (type: keyof typeof reactions) => {
     if (userReaction === type) {
@@ -60,7 +114,7 @@ export function Component() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 max-w-md mx-auto shadow-2xl border-x border-slate-200">
       
       {/* 1. TOP HEADER */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-slate-200/80 shadow-sm">
@@ -88,30 +142,45 @@ export function Component() {
 
       {/* MAIN CONTENT AREA */}
       {activeTab === 'feed' && (
-        <main className="flex-1 max-w-md mx-auto w-full">
+        <main className="flex-1 w-full">
+          {/* Stories Bar */}
           <section className="py-3 px-3 border-b border-slate-200 overflow-x-auto flex space-x-4 no-scrollbar bg-white">
             <div className="flex flex-col items-center space-y-1 flex-shrink-0 cursor-pointer">
               <div className="relative p-[2px] rounded-full border-2 border-dashed border-teal-500">
                 <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="Your Story" className="w-14 h-14 rounded-full object-cover" />
-                <span className="absolute bottom-0 right-0 bg-teal-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold border-2 border-white">+</span>
               </div>
               <span className="text-[11px] text-slate-600 font-medium">შენი სთორი</span>
             </div>
 
-            {[
-              { name: 'Sopho', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150' },
-              { name: 'Elena', img: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150' },
-              { name: 'Nini', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-              { name: 'Luka', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' }
-            ].map((story, index) => (
-              <div key={index} className="flex flex-col items-center space-y-1 flex-shrink-0 cursor-pointer">
+            {stories.map((story) => (
+              <div key={story.id} className="flex flex-col items-center space-y-1 flex-shrink-0 cursor-pointer">
                 <div className="p-[2px] rounded-full bg-gradient-to-tr from-teal-400 via-indigo-500 to-pink-500">
-                  <img src={story.img} alt={story.name} className="w-14 h-14 rounded-full object-cover border-2 border-white" />
+                  <img src={story.image_url} alt={story.user_name} className="w-14 h-14 rounded-full object-cover border-2 border-white" />
                 </div>
-                <span className="text-[11px] text-slate-600 font-medium">{story.name}</span>
+                <span className="text-[11px] text-slate-600 font-medium">{story.user_name}</span>
               </div>
             ))}
           </section>
+
+          {/* Add Story Form */}
+          <div className="p-3 bg-white border-b border-slate-200">
+            <form onSubmit={handleAddStory} className="flex gap-2">
+              <input
+                type="url"
+                placeholder="ჩასვი სურათის URL სთორისთვის..."
+                value={newStoryUrl}
+                onChange={(e) => setNewStoryUrl(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-teal-500"
+              />
+              <button
+                type="submit"
+                disabled={isUploading}
+                className="bg-teal-600 text-white px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-teal-700 transition"
+              >
+                {isUploading ? '...' : 'ატვირთვა'}
+              </button>
+            </form>
+          </div>
 
           <div className="p-4 space-y-6">
             <article className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 shadow-sm">
@@ -161,7 +230,7 @@ export function Component() {
 
       {/* 2. WARDROBE TAB */}
       {activeTab === 'wardrobe' && (
-        <main className="flex-1 max-w-md mx-auto w-full p-4 space-y-4">
+        <main className="flex-1 w-full p-4 space-y-4">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-bold font-serif text-slate-900">ჩემი გარდერობი</h2>
@@ -192,7 +261,7 @@ export function Component() {
 
       {/* 3. TRENDORA AI STYLIST TAB */}
       {activeTab === 'ai' && (
-        <main className="flex-1 max-w-md mx-auto w-full p-4 space-y-4">
+        <main className="flex-1 w-full p-4 space-y-4">
           <div className="bg-gradient-to-r from-teal-600 via-indigo-600 to-pink-500 text-white p-5 rounded-3xl shadow-md space-y-2">
             <div className="flex items-center space-x-2">
               <Sparkles className="w-6 h-6" />
@@ -211,7 +280,7 @@ export function Component() {
           </div>
 
           {aiRecommendation && (
-            <div className="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm space-y-2.5 animate-fadeIn">
+            <div className="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm space-y-2.5">
               <div className="flex items-center space-x-2 text-teal-700 font-bold text-xs">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>AI-ს რეკომენდაცია:</span>
@@ -224,7 +293,7 @@ export function Component() {
 
       {/* 4. PROFILE TAB */}
       {activeTab === 'profile' && (
-        <main className="flex-1 max-w-md mx-auto w-full p-4 space-y-5">
+        <main className="flex-1 w-full p-4 space-y-5">
           {!showSettings ? (
             <>
               <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
@@ -337,16 +406,6 @@ export function Component() {
       </nav>
 
     </div>
-  );
-}
-
-// HTML-ის #root ელემენტთან დაკავშირება
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <Component />
-    </React.StrictMode>
   );
 }
 

@@ -18,7 +18,8 @@ import {
   Bell,
   CheckCircle2,
   ChevronRight,
-  Camera
+  Camera,
+  X
 } from 'lucide-react';
 
 export const Route = createFileRoute('/')({
@@ -29,7 +30,7 @@ interface Story {
   id: string;
   user_name: string;
   image_url: string;
-  created_at: string;
+  created_at?: string;
 }
 
 export function Component() {
@@ -37,6 +38,10 @@ export function Component() {
   const [showSettings, setShowSettings] = useState(false);
   const [eventCategory, setEventCategory] = useState<string>('party');
   const [aiRecommendation, setAiRecommendation] = useState<string | null>(null);
+
+  // Modals / Zoom States
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   // Supabase Data
   const [stories, setStories] = useState<Story[]>([]);
@@ -114,10 +119,10 @@ export function Component() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 max-w-md mx-auto shadow-2xl border-x border-slate-200">
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 max-w-md mx-auto shadow-2xl border-x border-slate-200 relative">
       
       {/* 1. TOP HEADER */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-slate-200/80 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-slate-200/80 shadow-sm">
         <button onClick={() => setActiveTab('profile')} className="relative transition-transform active:scale-95">
           <img 
             src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" 
@@ -153,7 +158,11 @@ export function Component() {
             </div>
 
             {stories.map((story) => (
-              <div key={story.id} className="flex flex-col items-center space-y-1 flex-shrink-0 cursor-pointer">
+              <div 
+                key={story.id} 
+                onClick={() => setSelectedStory(story)}
+                className="flex flex-col items-center space-y-1 flex-shrink-0 cursor-pointer transition transform active:scale-95"
+              >
                 <div className="p-[2px] rounded-full bg-gradient-to-tr from-teal-400 via-indigo-500 to-pink-500">
                   <img src={story.image_url} alt={story.user_name} className="w-14 h-14 rounded-full object-cover border-2 border-white" />
                 </div>
@@ -195,7 +204,11 @@ export function Component() {
                 <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200">Score: 96</span>
               </div>
 
-              <div className="aspect-[4/5] bg-slate-100 relative">
+              {/* Click to Zoom Post Image */}
+              <div 
+                className="aspect-[4/5] bg-slate-100 relative cursor-pointer"
+                onClick={() => setZoomedImage("https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800")}
+              >
                 <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800" alt="Post" className="w-full h-full object-cover" />
               </div>
 
@@ -249,7 +262,11 @@ export function Component() {
               { title: 'თეთრი სნიკერსი', cat: 'ფეხსაცმელი', img: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400' },
               { title: 'დენიმ შარვალი', cat: 'ქვედატანი', img: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400' }
             ].map((item, idx) => (
-              <div key={idx} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-2 space-y-1.5">
+              <div 
+                key={idx} 
+                onClick={() => setZoomedImage(item.img)}
+                className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-2 space-y-1.5 cursor-pointer hover:shadow-md transition"
+              >
                 <img src={item.img} alt={item.title} className="w-full h-36 object-cover rounded-xl" />
                 <h4 className="font-bold text-xs text-slate-800">{item.title}</h4>
                 <span className="text-[10px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded-md font-medium inline-block">{item.cat}</span>
@@ -341,7 +358,13 @@ export function Component() {
                     'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400',
                     'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400'
                   ].map((img, i) => (
-                    <img key={i} src={img} alt="Grid" className="w-full h-28 object-cover rounded-xl" />
+                    <img 
+                      key={i} 
+                      src={img} 
+                      alt="Grid" 
+                      onClick={() => setZoomedImage(img)}
+                      className="w-full h-28 object-cover rounded-xl cursor-pointer hover:opacity-90 transition" 
+                    />
                   ))}
                 </div>
               </div>
@@ -385,8 +408,37 @@ export function Component() {
         </main>
       )}
 
+      {/* STORY VIEWER MODAL */}
+      {selectedStory && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col justify-between p-4 backdrop-blur-md">
+          <div className="flex justify-between items-center text-white z-10 pt-2">
+            <span className="font-bold text-sm">{selectedStory.user_name}</span>
+            <button onClick={() => setSelectedStory(null)} className="p-1 rounded-full bg-white/20 text-white">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="relative flex-1 my-4 flex items-center justify-center">
+            <img src={selectedStory.image_url} alt="Story view" className="max-h-[80vh] w-auto object-contain rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
+
+      {/* IMAGE ZOOM MODAL */}
+      {zoomedImage && (
+        <div 
+          onClick={() => setZoomedImage(null)} 
+          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 backdrop-blur-sm cursor-zoom-out"
+        >
+          <button className="absolute top-4 right-4 p-2 text-white bg-white/20 rounded-full">
+            <X className="w-6 h-6" />
+          </button>
+          <img src={zoomedImage} alt="Zoomed view" className="max-h-[90vh] max-w-full object-contain rounded-xl shadow-2xl" />
+        </div>
+      )}
+
       {/* BOTTOM NAVIGATION BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center max-w-md mx-auto z-50 shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center max-w-md mx-auto z-40 shadow-lg">
         <button onClick={() => setActiveTab('feed')} className={`flex flex-col items-center transition ${activeTab === 'feed' ? 'text-teal-600 font-bold' : 'text-slate-400'}`}>
           <Home className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">მთავარი</span>
